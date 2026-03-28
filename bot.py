@@ -9,8 +9,9 @@ GEMINI_API_KEY = 'AIzaSyDDxc3tGcgosIUXm30i35f94hd_Knmp2kE'
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 def get_gemini_response(user_text):
-    # DIQQAT: Eng chidamli v1beta va gemini-pro modeli
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
+    # DIQQAT: Bu eng barqaror va xatosiz URL manzil!
+    # v1 versiyasi va models/gemini-1.5-flash to'liq nomi
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
     
     headers = {'Content-Type': 'application/json'}
     
@@ -25,24 +26,24 @@ def get_gemini_response(user_text):
     }
     
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=25)
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
         
         if response.status_code == 200:
             result = response.json()
             if 'candidates' in result and len(result['candidates']) > 0:
                 return result['candidates'][0]['content']['parts'][0]['text']
             else:
-                return "Akajon, AI javob bera olmadi. Qaytadan yozing-chi?"
+                return "Akajon, AI hozircha javob bermadi. Qaytadan yozing."
         else:
-            # Xato chiqsa, model nomini o'zgartirib ko'ramiz
-            return f"Xato kodi: {response.status_code}. Google: {response.text[:80]}..."
+            # Agar v1 ham 404 bersa, demak API KEY'da mintaqa cheklovi bor
+            return f"Xato kodi: {response.status_code}. Google javobi: {response.text[:100]}..."
             
     except Exception as e:
-        return f"Ulanishda xato: {str(e)[:50]}"
+        return f"Ulanish xatosi: {str(e)[:50]}"
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
-    bot.reply_to(message, "Assalomu alaykum, akajon! 😊 Mana, eng barqaror Gemini-Pro modeliga o'tdik. Endi ishlashi kerak! Nima gaplar?")
+    bot.reply_to(message, "Assalomu alaykum, akajon! 😊  Nima gaplar?")
 
 @bot.message_handler(func=lambda message: True)
 def talk(message):
@@ -51,10 +52,9 @@ def talk(message):
         ai_response = get_gemini_response(message.text)
         bot.reply_to(message, ai_response)
     except Exception:
-        bot.reply_to(message, "Akajon, ozgina texnik nosozlik bo'ldi.")
+        bot.reply_to(message, "Akajon, nosozlik yuz berdi. Qaytadan urinib ko'ring.")
 
 if __name__ == "__main__":
     bot.remove_webhook()
-    print("Bot Gemini-Pro bilan ishga tushdi...")
+    print("Bot v1 Stable bilan ishga tushdi...")
     bot.infinity_polling()
-    
