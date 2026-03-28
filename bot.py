@@ -8,35 +8,36 @@ GEMINI_API_KEY = 'AIzaSyDDxc3tGcgosIUXm30i35f94hd_Knmp2kE'
 # Gemini-ni sozlash
 genai.configure(api_key=GEMINI_API_KEY)
 
-# DIQQAT: gemini-pro o'rniga gemini-1.5-flash ishlatamiz (bu v1-da aniq bor)
-model = genai.GenerativeModel('gemini-1.5-flash')
+# DIQQAT: Modelni to'liq nomi bilan chaqiramiz (models/ qo'shimchasi bilan)
+model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
-    bot.reply_to(message, "Assalomu alaykum, akajon! 😊 Mana, 1.5-Flash modeliga o'tdik. Endi ishlashi kerak. Nima gaplar?")
+    bot.reply_to(message, "Assalomu alaykum, akajon! 😊 Mana endi to'liq yo'l bilan ulandik. Ishlashi kerak! Nima gaplar?")
 
 @bot.message_handler(func=lambda message: True)
 def talk_with_gemini(message):
     try:
-        # Promptga biroz yo'nalish beramiz
+        # Promptni yuboramiz
         prompt = f"Sen samimiy o'zbek hamrohisan. Foydalanuvchiga 'akajon' deb murojaat qil. Savol: {message.text}"
         
+        # Javobni olish
         response = model.generate_content(prompt)
         
         if response.text:
             bot.reply_to(message, response.text)
         else:
-            bot.reply_to(message, "Akajon, AI hozircha jim. Qaytadan yozib ko'ring-chi?")
+            bot.reply_to(message, "Akajon, javob bo'sh qaytdi. Qaytadan urinib ko'ring-chi?")
             
     except Exception as e:
-        error_str = str(e)
-        print(f"Xato: {error_str}")
-        # Xatoni aniq ko'rish uchun (masalan: API Key xatosi yoki model xatosi)
-        bot.reply_to(message, f"Akajon, muammo chiqdi: {error_str[:100]}")
+        error_msg = str(e)
+        print(f"Xato: {error_msg}")
+        # Xatoni aniq ko'rish uchun (faqat boshlanishini chiqaramiz)
+        bot.reply_to(message, f"Akajon, nosozlik: {error_msg[:80]}...")
 
 if __name__ == "__main__":
     bot.remove_webhook()
-    print("Bot 1.5-Flash bilan ishga tushdi...")
+    print("Bot models/gemini-1.5-flash bilan ishga tushdi...")
     bot.infinity_polling()
