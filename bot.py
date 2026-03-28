@@ -9,8 +9,8 @@ GEMINI_API_KEY = 'AIzaSyDDxc3tGcgosIUXm30i35f94hd_Knmp2kE'
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 def get_gemini_response(user_text):
-    # DIQQAT: v1beta emas, barqaror v1 versiyasidan foydalanamiz
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    # DIQQAT: Eng chidamli v1beta va gemini-pro modeli
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
     
     headers = {'Content-Type': 'application/json'}
     
@@ -32,9 +32,9 @@ def get_gemini_response(user_text):
             if 'candidates' in result and len(result['candidates']) > 0:
                 return result['candidates'][0]['content']['parts'][0]['text']
             else:
-                return "Akajon, javob bo'sh qaytdi. Qaytadan yozing-chi?"
+                return "Akajon, AI javob bera olmadi. Qaytadan yozing-chi?"
         else:
-            # Agar v1 ham 404 bersa, demak model nomi yoki API keyda muammo bor
+            # Xato chiqsa, model nomini o'zgartirib ko'ramiz
             return f"Xato kodi: {response.status_code}. Google: {response.text[:80]}..."
             
     except Exception as e:
@@ -42,7 +42,7 @@ def get_gemini_response(user_text):
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
-    bot.reply_to(message, "Assalomu alaykum, akajon! 😊 Mana endi v1 stable versiyasidamiz. Endi aniq ishlashi kerak! Nima gaplar?")
+    bot.reply_to(message, "Assalomu alaykum, akajon! 😊 Mana, eng barqaror Gemini-Pro modeliga o'tdik. Endi ishlashi kerak! Nima gaplar?")
 
 @bot.message_handler(func=lambda message: True)
 def talk(message):
@@ -55,5 +55,6 @@ def talk(message):
 
 if __name__ == "__main__":
     bot.remove_webhook()
-    print("Bot v1 (stable) API bilan ishga tushdi...")
+    print("Bot Gemini-Pro bilan ishga tushdi...")
     bot.infinity_polling()
+    
