@@ -9,12 +9,12 @@ GEMINI_API_KEY = 'AIzaSyDDxc3tGcgosIUXm30i35f94hd_Knmp2kE'
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 def get_gemini_response(user_text):
-    # Google API-ning eng barqaror nuqtasi
+    # Google API-ning eng aniq va ishlaydigan nuqtasi
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
     
     headers = {'Content-Type': 'application/json'}
     
-    # So'rov strukturasi (Google talab qilganidek)
+    # So'rov strukturasi (Google talab qilganidek to'liq shaklda)
     payload = {
         "contents": [
             {
@@ -22,17 +22,12 @@ def get_gemini_response(user_text):
                     {"text": f"Sen foydalanuvchining yaqin hamrohisan. Samimiy va do'stona gaplash. Foydalanuvchiga 'akajon' deb murojaat qil. O'zbek tilida javob ber. Savol: {user_text}"}
                 ]
             }
-        ],
-        "generationConfig": {
-            "temperature": 0.7,
-            "topK": 40,
-            "topP": 0.95,
-            "maxOutputTokens": 1024,
-        }
+        ]
     }
     
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=20)
+        # Request yuboramiz
+        response = requests.post(url, headers=headers, json=payload, timeout=25)
         
         if response.status_code == 200:
             result = response.json()
@@ -42,10 +37,11 @@ def get_gemini_response(user_text):
             else:
                 return "Akajon, AI hozircha javob bera olmadi. Qaytadan yozing-chi?"
         else:
-            return f"Xato kodi: {response.status_code}. Google javobi: {response.text[:50]}..."
+            # Xato kodi va xabarni aniq ko'ramiz
+            return f"Xato kodi: {response.status_code}. Google xabari: {response.text[:100]}..."
             
     except Exception as e:
-        return f"Ulanishda xato yuz berdi: {str(e)[:50]}"
+        return f"Ulanishda xato: {str(e)[:50]}"
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
@@ -57,7 +53,7 @@ def talk(message):
         bot.send_chat_action(message.chat.id, 'typing')
         ai_response = get_gemini_response(message.text)
         bot.reply_to(message, ai_response)
-    except Exception as e:
+    except Exception:
         bot.reply_to(message, "Akajon, ozgina texnik nosozlik bo'ldi. Qaytadan urinib ko'ring.")
 
 if __name__ == "__main__":
