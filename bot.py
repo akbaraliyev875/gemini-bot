@@ -8,44 +8,39 @@ GEMINI_API_KEY = 'AIzaSyDDxc3tGcgosIUXm30i35f94hd_Knmp2kE'
 # Gemini-ni sozlash
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Modelni eng yangi versiyasiga o'zgartirdik
-model = genai.GenerativeModel('gemini-1.5-flash')
+# Eng chidamli model nomini ishlatamiz
+model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
-# Botning "xarakteri"
 INSTRUCTION = (
-    "Sen foydalanuvchining shaxsiy va eng yaqin hamrohisan. "
-    "Muloqotda samimiy bo'l, foydalanuvchiga 'akajon' deb murojaat qil. "
-    "Foydalanuvchi haqidagi ma'lumotlarni eslab qol va unga moslash. "
-    "O'zbek tilida, kerak bo'lsa samimiy shevada gaplash."
+    "Sen foydalanuvchining yaqin hamrohisan. Samimiy va do'stona gaplash. "
+    "Foydalanuvchiga 'akajon' deb murojaat qil. O'zbek tilida javob ber."
 )
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
-    bot.reply_to(message, "Assalomu alaykum, akajon! 😊 Mana endi hammasi joyida. "
-                          "Yangi hamrohingiz gaplashishga tayyor. Nima gaplar?")
+    bot.reply_to(message, "Assalomu alaykum, akajon! 😊 Mana endi haqiqiy suhbatni boshlasak bo'ladi. Nima gaplar?")
 
 @bot.message_handler(func=lambda message: True)
 def talk_with_gemini(message):
     try:
-        # Oddiy va aniq muloqot usuli
+        # Promptni yuboramiz
         prompt = f"{INSTRUCTION}\n\nFoydalanuvchi: {message.text}"
         
+        # Generatsiya qilish
         response = model.generate_content(prompt)
         
-        if response.text:
+        if response and response.text:
             bot.reply_to(message, response.text)
         else:
-            bot.reply_to(message, "Akajon, tushunarsiz javob bo'ldi, qaytadan yozing-chi?")
+            bot.reply_to(message, "Akajon, xabar bo'sh qaytdi. Qaytadan yozib ko'ring-chi?")
             
     except Exception as e:
-        print(f"Xato: {e}")
-        # Xatoni logga chiqaramiz va foydalanuvchiga xabar beramiz
-        bot.reply_to(message, f"Akajon, ozgina texnik nosozlik bo'ldi. Qaytadan urinib ko'ring.")
+        print(f"Xato yuz berdi: {e}")
+        # Xatoni aniq ko'rish uchun (faqat test vaqtida)
+        bot.reply_to(message, f"Akajon, nosozlik turi: {str(e)[:50]}")
 
 if __name__ == "__main__":
-    # Avvalgi webhook-larni tozalaymiz
     bot.remove_webhook()
-    print("Gemini-1.5-flash bot ishga tushdi...")
     bot.infinity_polling()
