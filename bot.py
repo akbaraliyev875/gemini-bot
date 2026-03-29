@@ -1,60 +1,94 @@
-import telebot
-import requests
-import json
+import logging
+import asyncio
+import random
+import time
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 
-# Ma'lumotlar
-TELEGRAM_TOKEN = '8619873269:AAF7Iy4PfmLzLdgf34ZtFHBjrHuqs1nNOYU'
-GEMINI_API_KEY = 'AIzaSyDDxc3tGcgosIUXm30i35f94hd_Knmp2kE'
+# Sizning bot tokeningiz
+TOKEN = "8619873269:AAF7Iy4PfmLzLdgf34ZtFHBjrHuqs1nNOYU"
 
-bot = telebot.TeleBot(TELEGRAM_TOKEN)
+logging.basicConfig(level=logging.INFO)
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
 
-def get_gemini_response(user_text):
-    # DIQQAT: Bu eng barqaror va xatosiz URL manzil!
-    # v1 versiyasi va models/gemini-1.5-flash to'liq nomi
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+# Sanoq sistemalari bazasi (Kichik harf yoki katta harf farq qilmaydi)
+QUIZ_DATA = [
+    {"q": "2 lik sanoq sistemasi (inglizcha)?", "a": "Binary"},
+    {"q": "8 lik sanoq sistemasi (inglizcha)?", "a": "Octal"},
+    {"q": "10 lik sanoq sistemasi (inglizcha)?", "a": "Decimal"},
+    {"q": "16 lik sanoq sistemasi (inglizcha)?", "a": "Hexadecimal"},
+]
+
+class QuizState(StatesGroup):
+    answering = State()
+
+@dp.message(Command("start"))
+async def start_quiz(message: types.Message, state: FSMContext):
+    # Har safar /start bosilganda barcha natijalar nollanadi
+    await state.update_data(correct=0, total=0, start_time=time.time())
+    await message.answer("Sanoq sistemalari testi boshlandi! 🚀\nTo'xtatish uchun /stop ni yozing.")
+    await ask_question(message, state)
+
+async def ask_question(message: types.Message, state: FSMContext):
+    question_item = random.choice(QUIZ_DATA)
+    await state.update_data(current_answer=question_item['a'])
+    await message.answer(f"❓ {question_item['q']}")
+    await state.set_state(QuizState.answering)
+
+@dp.message(Command("stop"))
+async def stop_quiz(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    if 'start_time' not in data:
+        await message.answer("Siz hali quizni boshlamadingiz. /start ni bosing.")
+        return
+
+    end_time = time.time()
+    duration = int(end_time - data['start_time'])
     
-    headers = {'Content-Type': 'application/json'}
-    
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": f"Sen samimiy o'zbek hamrohisan. Foydalanuvchiga 'akajon' deb murojaat qil. Savol: {user_text}"}
-                ]
-            }
-        ]
-    }
-    
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        
-        if response.status_code == 200:
-            result = response.json()
-            if 'candidates' in result and len(result['candidates']) > 0:
-                return result['candidates'][0]['content']['parts'][0]['text']
-            else:
-                return "Akajon, AI hozircha javob bermadi. Qaytadan yozing."
-        else:
-            # Agar v1 ham 404 bersa, demak API KEY'da mintaqa cheklovi bor
-            return f"Xato kodi: {response.status_code}. Google javobi: {response.text[:100]}..."
-            
-    except Exception as e:
-        return f"Ulanish xatosi: {str(e)[:50]}"
+    # Natijalarni hisoblash
+    correct = data.get('correct', 0)
+    total = data.get('total', 0)
+    wrong = total - correct
 
-@bot.message_handler(commands=['start'])
-def welcome(message):
-    bot.reply_to(message, "Assalomu alaykum, akajon! 😊  Nima gaplar?")
+    await message.answer(
+        f"🏁 **Sizning natijangiz:**\n\n"
+        f"⏱ Umumiy vaqt: {duration} soniya\n"
+        f"✅ To'g'ri javoblar: {correct}\n"
+        f"❌ Xato javoblar: {wrong}\n"
+        f"📊 Jami berilgan savollar: {total}\n\n"
+        f"Qayta boshlash uchun /start bosing."
+    )
+    await state.clear()
 
-@bot.message_handler(func=lambda message: True)
-def talk(message):
-    try:
-        bot.send_chat_action(message.chat.id, 'typing')
-        ai_response = get_gemini_response(message.text)
-        bot.reply_to(message, ai_response)
-    except Exception:
-        bot.reply_to(message, "Akajon, nosozlik yuz berdi. Qaytadan urinib ko'ring.")
+@dp.message(QuizState.answering)
+async def check_answer(message: types.Message, state: FSMContext):
+    # Agar foydalanuvchi komanda yozsa (masalan /stop), javob deb tekshirmaydi
+    if message.text.startswith('/'): return
+
+    data = await state.get_data()
+    # Foydalanuvchi javobini ham, to'g'ri javobni ham kichik harfga o'tkazib tekshiramiz
+    user_answer = message.text.strip().lower()
+    correct_answer = data['current_answer'].lower()
+
+    new_total = data['total'] + 1
+    new_correct = data['correct']
+
+    if user_answer == correct_answer:
+        new_correct += 1
+        await message.answer("✅ To'g'ri!")
+    else:
+        await message.answer(f"❌ Xato! To'g'ri javob: {data['current_answer']}")
+
+    # Ma'lumotlarni yangilaymiz va keyingi savolni beramiz
+    await state.update_data(total=new_total, correct=new_correct)
+    await ask_question(message, state)
+
+async def main():
+    print("Bot terminalda ishga tushdi...")
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    bot.remove_webhook()
-    print("Bot v1 Stable bilan ishga tushdi...")
-    bot.infinity_polling()
+    asyncio.run(main())
