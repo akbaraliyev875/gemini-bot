@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-# So'zlar bazasi (Terminologiya uchun)
+# So'zlar bazasi
 WORDS_DATA = [
     {"q": "2 lik sanoq sistemasi (inglizcha)?", "a": "Binary"},
     {"q": "8 lik sanoq sistemasi (inglizcha)?", "a": "Octal"},
@@ -52,7 +52,7 @@ async def set_mode(message: types.Message, state: FSMContext):
     await message.answer(
         f"{message.text} rejimi boshlandi! 🚀\n"
         f"To'xtatish uchun: /s\n"
-        f"Har bir xato uchun: -0.01 WPS", 
+        f"Xato uchun jarima: -0.01 WPS", 
         reply_markup=types.ReplyKeyboardRemove()
     )
     await ask_question(message, state)
@@ -61,22 +61,21 @@ async def ask_question(message: types.Message, state: FSMContext):
     data = await state.get_data()
     
     if data['mode'] == "words":
-        # So'zlar rejimida ro'yxatdan tasodifiy tanlash
         item = random.choice(WORDS_DATA)
         question = item['q']
         answer = item['a']
     else:
-        # HISOBLASH GENERATORI (Cheksiz va har xil)
+        # HISOB-KITOBLAR UCHUN GENERATOR
         r_type = random.randint(1, 3)
         if r_type == 1: # Binary to Decimal
-            num = random.randint(1, 31) # 5-bitgacha (tezlik uchun)
+            num = random.randint(1, 31)
             question = f"{bin(num)[2:]} (binary) -> o'nlikda?"
             answer = str(num)
         elif r_type == 2: # Decimal to Binary
             num = random.randint(1, 20)
             question = f"{num} soni binary-da necha bo'ladi?"
             answer = bin(num)[2:]
-        else: # Hex Hex symbols
+        else: # Hexadecimal harflari
             num = random.randint(10, 15)
             hex_map = {10: 'A', 11: 'B', 12: 'C', 13: 'D', 14: 'E', 15: 'F'}
             question = f"16 likda {num} soni qaysi harf?"
@@ -86,7 +85,7 @@ async def ask_question(message: types.Message, state: FSMContext):
     await message.answer(f"❓ {question}")
     await state.set_state(QuizState.answering)
 
-@dp.message(Command("s")) # Qisqa to'xtatish buyrug'i
+@dp.message(Command("s"))
 async def stop_quiz(message: types.Message, state: FSMContext):
     data = await state.get_data()
     if 'start_time' not in data:
@@ -97,7 +96,6 @@ async def stop_quiz(message: types.Message, state: FSMContext):
     correct = data.get('correct', 0)
     wrong = data.get('wrong', 0)
     
-    # WPS Formula: (To'g'ri * 10 / vaqt) - (xatolar * 0.01)
     base_wps = (correct * 10) / duration if duration > 0 else 0
     penalty = wrong * 0.01
     final_wps = max(0, round(base_wps - penalty, 3))
@@ -128,13 +126,20 @@ async def check_answer(message: types.Message, state: FSMContext):
         await message.answer("✅")
     else:
         new_wrong += 1
-        await message.answer(f"❌ To'g'ri javob: {data['current_answer']}\n{data['current_answer']}")
+        await message.answer(f"❌ To'g'ri: {data['current_answer']}\n{data['current_answer']}")
 
     await state.update_data(correct=new_correct, wrong=new_wrong, total=data.get('total', 0) + 1)
     await ask_question(message, state)
 
 async def main():
-    print("Bot muvaffaqiyatli ishga tushdi...")
+    # MENU KOMANDALARINI O'RNATISH ( / ni bosganda chiqadi)
+    commands = [
+        types.BotCommand(command="start", description="Rejimni tanlash / Qayta boshlash"),
+        types.BotCommand(command="s", description="Natijani ko'rish va to'xtatish")
+    ]
+    await bot.set_my_commands(commands)
+    
+    print("Bot ishga tushdi...")
     try:
         await dp.start_polling(bot)
     finally:
